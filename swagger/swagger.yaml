@@ -1,0 +1,259 @@
+openapi: 3.0.0
+info:
+  title: Inventory REST API
+  description: A RESTful API for inventory management with JWT authentication, role-based access control, and full CRUD for products.
+  version: 1.0.0
+  contact:
+    name: Juan Pablo Luna
+    url: https://portafolio-dev-dls.pages.dev
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development
+  - url: https://your-api.railway.app/api
+    description: Production (Railway)
+
+tags:
+  - name: Auth
+    description: Register and login
+  - name: Products
+    description: Product management
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  example: juan@example.com
+                password:
+                  type: string
+                  example: secret123
+                role:
+                  type: string
+                  enum: [user, admin]
+                  example: user
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/UserPublic'
+        '400':
+          description: Missing fields
+        '409':
+          description: Email already registered
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and get JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  example: juan@example.com
+                password:
+                  type: string
+                  example: secret123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  token:
+                    type: string
+                  role:
+                    type: string
+        '401':
+          description: Invalid credentials
+
+  /products:
+    get:
+      tags: [Products]
+      summary: Get all products (public)
+      responses:
+        '200':
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+
+    post:
+      tags: [Products]
+      summary: Create a product (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Missing required fields
+        '401':
+          description: No token provided
+        '403':
+          description: Admins only
+
+  /products/{id}:
+    get:
+      tags: [Products]
+      summary: Get a product by ID (public)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Product found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+
+    put:
+      tags: [Products]
+      summary: Update a product (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '200':
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+        '403':
+          description: Admins only
+
+    delete:
+      tags: [Products]
+      summary: Delete a product (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Product deleted
+        '404':
+          description: Product not found
+        '403':
+          description: Admins only
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserPublic:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        role:
+          type: string
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        stock:
+          type: integer
+        category:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ProductInput:
+      type: object
+      required: [name, price]
+      properties:
+        name:
+          type: string
+          example: Laptop Dell XPS
+        description:
+          type: string
+          example: High performance laptop
+        price:
+          type: number
+          example: 1299.99
+        stock:
+          type: integer
+          example: 10
+        category:
+          type: string
+          example: Electronics
